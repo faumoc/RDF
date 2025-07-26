@@ -89,9 +89,23 @@ to see how our RDF model can be used for whole arm lifting task with Gauss-Newto
 
 - Use it!
 
-Note: Another option is to use the pytorch kinematics library to parse the urdf file automatically to build RDF for your own robot: https://github.com/UM-ARM-Lab/pytorch_kinematics
+Note: Another option is to use the pytorch kinematics library to parse the urdf file automatically to build RDF for your own robot: https://github.com/UM-ARM-Lab/pytorch_kinematics An exemple is available at ```panda_layer/panda_layer_pk.py```
 
-RDF is maintained by Yiming LI and licensed under the MIT License.
+## Citation
+
+If you find this work useful in your research, please cite:
+
+```bibtex
+@inproceedings{li2024representing,
+	author={Li, Yiming and Zhang, Yan and Razmjoo, Amirreza and Calinon, Sylvain},
+	title={Representing Robot Geometry as Distance Fields: Applications to Whole-body Manipulation},
+	booktitle={Proc.\ {IEEE} Intl Conf.\ on Robotics and Automation ({ICRA})},
+	year={2024},
+	pages={15351--15357}
+}
+
+
+RDF is maintained by Yiming LI and licensed under the MIT License. 
 
 The urdf file we used is licensed under the Apache License.
 
