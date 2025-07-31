@@ -15,8 +15,9 @@ import utils
 import mesh_to_sdf
 import skimage
 from panda_layer.panda_layer import PandaLayer
+from panda_layer.moma_layer_pk import MoMaLayer
 import argparse
-
+import collections
 CUR_DIR = os.path.dirname(os.path.abspath(__file__))
 
 class BPSDF():
@@ -70,9 +71,9 @@ class BPSDF():
 
     def train_bf_sdf(self,epoches=200):
         # represent SDF using basis functions
-        mesh_path = os.path.join(CUR_DIR,"panda_layer/meshes/voxel_128/*")
+        mesh_path = os.path.join(CUR_DIR,"panda_layer/meshes/moma/*")
         mesh_files = glob.glob(mesh_path)
-        mesh_files = sorted(mesh_files)[1:] #except finger
+        mesh_files = sorted(mesh_files) #except finger
         mesh_dict = {}
         for i,mf in enumerate(mesh_files):
             mesh_name = mf.split('/')[-1].split('.')[0]
@@ -126,7 +127,6 @@ class BPSDF():
         for i, k in enumerate(model.keys()):
             mesh_dict = model[k]
             mesh_name = mesh_dict['mesh_name']
-            print(f'{mesh_name}')
             mesh_name_list.append(mesh_name)
             weights = mesh_dict['weights'].to(self.device)
 
@@ -154,7 +154,18 @@ class BPSDF():
 
     def create_surface_mesh(self,model, nbData,vis =False, save_mesh_name=None):
         verts_list, faces_list,mesh_name_list = self.sdf_to_mesh(model, nbData)
-        for verts, faces,mesh_name in zip(verts_list, faces_list,mesh_name_list):
+        sorted_verts_list = []
+        sorted_faces_list = []
+        sorted_mesh_name_list = []
+        
+        for link in self.robot.links:
+            if link in mesh_name_list:
+                idx = mesh_name_list.index(link)
+                sorted_verts_list.append(verts_list[idx])
+                sorted_faces_list.append(faces_list[idx])
+                sorted_mesh_name_list.append(mesh_name_list[idx])
+        idx = 0
+        for verts, faces,mesh_name in zip(sorted_verts_list, sorted_faces_list,sorted_mesh_name_list):
             rec_mesh = trimesh.Trimesh(verts,faces)
             if vis:
                 rec_mesh.show()
@@ -162,13 +173,26 @@ class BPSDF():
                 save_path = os.path.join(CUR_DIR,"output_meshes")
                 if os.path.exists(save_path) is False:
                     os.mkdir(save_path)
-                trimesh.exchange.export.export_mesh(rec_mesh, os.path.join(save_path,f"{save_mesh_name}_{mesh_name}.stl"))
+                trimesh.exchange.export.export_mesh(rec_mesh, os.path.join(save_path,f"{save_mesh_name}_{idx}_{mesh_name}.stl"))
+                idx += 1
 
-    def get_whole_body_sdf_batch(self,x,pose,theta,model,use_derivative = True, used_links = [0,1,2,3,4,5,6,7,8],return_index=False):
+    def get_whole_body_sdf_batch(self,x,pose,theta,model,use_derivative = True, used_links = [0,1,2,3,4,5,6,7],return_index=False):
 
         B = len(theta)
         N = len(x)
         K = len(used_links)
+
+        model_values = list(model.values()) 
+        name_to_model = {item['mesh_name']: item for item in model_values}
+        reordered_list = []
+        for name in self.robot.links:
+            if name in name_to_model:
+                reordered_list.append(name_to_model[name])
+                del name_to_model[name]  # 可选：移除已添加的，避免重复
+        reordered_model = {i: item for i, item in enumerate(reordered_list)}
+
+        model = reordered_model
+
         offset = torch.cat([model[i]['offset'].unsqueeze(0) for i in used_links],dim=0).to(self.device)
         offset = offset.unsqueeze(0).expand(B,K,3).reshape(B*K,3).float()
         scale = torch.tensor([model[i]['scale'] for i in used_links],device=self.device)
@@ -230,7 +254,7 @@ class BPSDF():
                 return sdf_value, gradient_value, idx
             return sdf_value, gradient_value
 
-    def get_whole_body_sdf_with_joints_grad_batch(self,x,pose,theta,model,used_links = [0,1,2,3,4,5,6,7,8]):
+    def get_whole_body_sdf_with_joints_grad_batch(self,x,pose,theta,model,used_links = [0,1,2,3,4,5,6,7]):
 
         delta = 0.001
         B = theta.shape[0]
@@ -264,7 +288,7 @@ if __name__ =='__main__':
     parser.add_argument('--train', action='store_true')
     args = parser.parse_args()
 
-    panda = PandaLayer(args.device)
+    panda = MoMaLayer(args.device)
     bp_sdf = BPSDF(args.n_func,args.domain_min,args.domain_max,panda,args.device)
     
     # #  train Bernstein Polynomial model   
@@ -273,14 +297,27 @@ if __name__ =='__main__':
 
     # load trained model
     model_path = f'models/BP_{args.n_func}.pt'
+    print(f'load model from {model_path}')
     model = torch.load(model_path)
-    
+    print("model:", model)
+    model_values = list(model.values()) 
+    name_to_model = {item['mesh_name']: item for item in model_values}
+    reordered_list = []
+    for name in panda.links:
+        if name in name_to_model:
+            reordered_list.append(name_to_model[name])
+            del name_to_model[name]  # 可选：移除已添加的，避免重复
+    reordered_model = {i: item for i, item in enumerate(reordered_list)}
+
+    model = reordered_model
     # visualize the Bernstein Polynomial model for each robot link
     bp_sdf.create_surface_mesh(model,nbData=128,vis=True,save_mesh_name=f'BP_{args.n_func}')
 
     # visualize the Bernstein Polynomial model for the whole body
-    theta = torch.tensor([0, -0.3, 0, -2.2, 0, 2.0, np.pi/4]).float().to(args.device).reshape(-1,7)
+    # theta = torch.tensor([0, -0.3, 0, -2.2, 0, 2.0, np.pi/4]).float().to(args.device).reshape(-1,7)
+    theta = torch.tensor([0, -0.0, 0, -0.0, 0, 0.0, 0]).float().to(args.device).reshape(-1,7)
     pose = torch.from_numpy(np.identity(4)).to(args.device).reshape(-1, 4, 4).expand(len(theta),4,4).float()
+    print(pose)
     trans_list = panda.get_transformations_each_link(pose,theta)
     utils.visualize_reconstructed_whole_body(model, trans_list, tag=f'BP_{args.n_func}')
     

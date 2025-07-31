@@ -86,9 +86,8 @@ class PandaLayer(torch.nn.Module):
                 robot_mesh.append(mesh)
         return robot_mesh
 
-
-
-
+    def get_forward_robot_mesh(self, pose, theta):
+        return self.theta2mesh(theta)
 
 if __name__ == "__main__":
     device = 'cuda'
@@ -96,7 +95,7 @@ if __name__ == "__main__":
     scene = trimesh.Scene()
     theta = torch.tensor([-1.7370, -0.0455,  0.1577, -2.8271, -2.0578,  1.8342, -0.1893]).float().to(device).reshape(-1,7)
     trans = panda.forward_kinematics(theta)
-    print(trans['hand'][0])
+    print(trans)
     # pts = np.array([trans[k][0,:3,3].detach().cpu().numpy() for k in trans.keys()])
     # print(pts)
     # PC = trimesh.points.PointCloud(pts, colors=[255,0,0])

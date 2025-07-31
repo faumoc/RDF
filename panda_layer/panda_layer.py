@@ -441,8 +441,12 @@ if __name__ == "__main__":
     # theta = panda.theta_min + (panda.theta_max-panda.theta_min)*0.5
     # theta = torch.tensor([0, 0.8, -0.0, -2.3, -2.8, 1.5, np.pi/4.0]).float().to(device).reshape(-1,7)
     theta = torch.rand(1,7).float().to(device)
+    print("theta: ", theta)
+    print("len(theta): ", len(theta)   )
     pose = torch.from_numpy(np.identity(4)).to(device).reshape(-1, 4, 4).expand(len(theta),-1,-1).float()
     robot_mesh = panda.get_forward_robot_mesh(pose, theta)
     robot_mesh = np.sum(robot_mesh)
+    transformations = panda.get_transformations_each_link(pose, theta)
+    print("transformations: ", transformations)
     trimesh.exchange.export.export_mesh(robot_mesh, os.path.join('output_meshes',f"whole_body_levelset_0.stl"))
     robot_mesh.show()

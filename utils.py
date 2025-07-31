@@ -87,10 +87,18 @@ def visualize_reconstructed_whole_body(model, trans_list,tag):
     mesh_path = os.path.join(CUR_DIR,f"output_meshes/{tag}_*.stl")
     mesh_files = glob.glob(mesh_path)
     mesh_files.sort()
+    mesh_name = model[0]['mesh_name']
+    print(mesh_name )
+    mesh_names = [mesh_dict['mesh_name'] for mesh_dict in model.values()]
+    print("mesh_names:", mesh_names)
     view_mat = np.array([[1,0,0,0],[0,0,1,0],[0,-1,0,0],[0,0,0,1]])
     scene = trimesh.Scene()
     for i,mf in enumerate(mesh_files):
         mesh = trimesh.load(mf)
+        # for j,mesh_name in enumerate(mesh_names):
+        #     if mesh_name in mf:
+        #         mesh_dict = model[j]
+        #         break
         mesh_dict = model[i]
         offset = mesh_dict['offset'].cpu().numpy()
         scale = mesh_dict['scale']

@@ -14,9 +14,9 @@ import skimage
 import pyrender
 import torch
 
-mesh_path = os.path.dirname(os.path.realpath(__file__)) + "/panda_layer/meshes/voxel_128/*.stl"
+mesh_path = os.path.dirname(os.path.realpath(__file__)) + "/panda_layer/meshes/moma/*"
 mesh_files = glob.glob(mesh_path)
-mesh_files = sorted(mesh_files)[1:] #except finger
+mesh_files = sorted(mesh_files)#except finger
 
 for mf in mesh_files:
     mesh_name = mf.split('/')[-1].split('.')[0]

@@ -11,6 +11,7 @@
 import torch
 import os
 from panda_layer.panda_layer import PandaLayer
+from panda_layer.moma_layer_pk import MoMaLayer
 import bf_sdf
 import matplotlib.pyplot as plt
 import numpy as np
@@ -73,7 +74,7 @@ def plot_2D_panda_sdf(pose,theta,bp_sdf,nbData,model,device):
     plt.show()
 
 def plot_3D_panda_with_gradient(pose,theta,bp_sdf,model,device):  
-    robot_mesh = panda.get_forward_robot_mesh(pose, theta)[0]
+    robot_mesh = panda.get_forward_robot_mesh(pose, theta)
     robot_mesh = np.sum(robot_mesh)
 
     surface_points = robot_mesh.vertices
@@ -87,7 +88,7 @@ def plot_3D_panda_with_gradient(pose,theta,bp_sdf,model,device):
     choice_ball = np.random.choice(len(ball_query), 1024, replace=False)
     ball_query = ball_query[choice_ball]
     p = p + torch.from_numpy(ball_query).float().to(device)*0.5
-    sdf,ana_grad = bp_sdf.get_whole_body_sdf_batch(p,pose,theta,model,use_derivative=True,used_links = [0,1,2,3,4,5,6,7,8])
+    sdf,ana_grad = bp_sdf.get_whole_body_sdf_batch(p,pose,theta,model,use_derivative=True,used_links = [0,1,2,3,4,5,6,7])
     sdf,ana_grad = sdf.squeeze().detach().cpu().numpy(),ana_grad.squeeze().detach().cpu().numpy()
     # points
     pts = p.detach().cpu().numpy()
@@ -164,7 +165,7 @@ def vis_panda_sdf(pose, theta,device):
     pts = torch.cat(pts,dim=0).detach().cpu().numpy()
     print(pts.shape)
     scene = trimesh.Scene()
-    robot_mesh = panda.get_forward_robot_mesh(pose, theta)[0]
+    robot_mesh = panda.get_forward_robot_mesh(pose, theta)
     robot_mesh = np.sum(robot_mesh)
     scene.add_geometry(robot_mesh)
     pc =trimesh.PointCloud(pts,colors = [255,0,0])
@@ -181,7 +182,7 @@ if __name__ =='__main__':
     parser.add_argument('--train', action='store_true')
     args = parser.parse_args()
 
-    panda = PandaLayer(args.device)
+    panda = MoMaLayer(args.device)
     bp_sdf = bf_sdf.BPSDF(args.n_func,args.domain_min,args.domain_max,panda,args.device)
 
     #  load  model
