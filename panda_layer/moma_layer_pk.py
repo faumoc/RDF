@@ -46,6 +46,8 @@ class  MoMaLayer(torch.nn.Module):
 
         self.theta_min = joint_lim[0,:].to(self.device)
         self.theta_max = joint_lim[1,:].to(self.device)
+        self.q_max = torch.cat([torch.tensor([1.0, 1.0], device=self.theta_max.device), self.theta_max])
+        self.q_min = torch.cat([torch.tensor([-1.0, -1.0], device=self.theta_min.device), self.theta_min])
 
         self.theta_mid = (self.theta_min + self.theta_max) / 2.0
         self.theta_min_soft = (self.theta_min-self.theta_mid)*0.8 + self.theta_mid
@@ -106,6 +108,29 @@ class  MoMaLayer(torch.nn.Module):
 
     def get_forward_robot_mesh(self, pose, theta):
         return self.theta2mesh(theta)
+    
+    def get_forward_robot_mesh_xy(self, pose, q):
+        # pose: (1,4,4)
+        # q_r: (N,7)
+        q_t = q[:,:2]
+        q_r = q[:,2:]
+        trans = self.forward_kinematics(q_r)
+        for k in trans.keys():
+            trans[k][:,0,3] += q_t[:,0]
+            trans[k][:,1,3] += q_t[:,1]
+
+        robot_mesh = []
+        for k in self.meshes.keys():
+            if k !='finger':
+                mesh = copy.deepcopy(self.meshes[k])
+                vertices = torch.from_numpy(mesh.vertices).to(self.device).float()
+                vertices = torch.cat([vertices, torch.ones([vertices.shape[0], 1], device=self.device)], dim=-1).t()
+
+                transformed_vertices = torch.matmul(trans[k].squeeze(), vertices).t()[:, :3].detach().cpu().numpy()
+                mesh.vertices = transformed_vertices
+                robot_mesh.append(mesh)
+        return robot_mesh
+
 
 
 if __name__ == "__main__":
@@ -117,7 +142,7 @@ if __name__ == "__main__":
 
     trans = moma.forward_kinematics(theta)
     transformations = moma.get_transformations_each_link(pose, theta)
-    print("transformations: ", transformations)
+    print("transformations:  shape", transformations[0].shape)
     # print(trans)
     # pts = np.array([trans[k][0,:3,3].detach().cpu().numpy() for k in trans.keys()])
     # print(pts)

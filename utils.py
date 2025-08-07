@@ -108,6 +108,21 @@ def visualize_reconstructed_whole_body(model, trans_list,tag):
         scene.add_geometry(mesh)
     scene.show()
 
+def get_reconstructed_whole_body(model, trans_list, tag):
+    mesh_path = os.path.join(CUR_DIR,f"output_meshes/{tag}_*.stl")
+    mesh_files = glob.glob(mesh_path)
+    mesh_files.sort()
+    mesh_name = model[0]['mesh_name']
+    robot_mesh = []
+    for i,mf in enumerate(mesh_files):
+        mesh = trimesh.load(mf)
+        mesh_dict = model[i]
+        offset = mesh_dict['offset'].cpu().numpy()
+        scale = mesh_dict['scale']
+        mesh.vertices = mesh.vertices*scale + offset
+        mesh.apply_transform(trans_list[i].squeeze().cpu().numpy())
+        robot_mesh.append(mesh)
+    return robot_mesh
 def rotation_matrix_from_vectors(vec1, vec2):
     """ Find the rotation matrix that aligns vec1 to vec2
     :param vec1: A 3d "source" vector
